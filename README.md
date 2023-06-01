@@ -1,12 +1,14 @@
-# [GroupID] your projrct title
+# [Group5] your projrct title
 The goals of this project.
 
 ## Contributors
 |組員|系級|學號|工作分配|
 |-|-|-|-|
-|何彥南|資科碩二|110753202|團隊中的吉祥物🦒，負責增進團隊氣氛| 
-|張小銘|資科碩二|xxxxxxxxx|團隊的中流砥柱，一個人打十個|
-
+|羅鈺涵|資科碩一|112753208|團隊中的吉祥物🦒，負責增進團隊氣氛| 
+|陳品伃|資科碩一|112753204|團隊的中流砥柱，一個人打十個|
+|郭彥伶|資科碩一|110258015|團隊的中流砥柱，一個人打十個|
+|巫謹任|資科碩一|111753124|團隊的中流砥柱，一個人打十個|
+|許軒祥|資科碩一|111753122|團隊的中流砥柱，一個人打十個|
 ## Quick start
 You might provide an example commend or few commends to reproduce your analysis, i.e., the following R script
 ```R

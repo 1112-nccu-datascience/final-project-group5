@@ -4,6 +4,7 @@ library(corrplot)
 library(caTools)
 library(xgboost)
 library(e1071)
+library(pROC)
 ################## Feature ##################
 # binary (bin) or categorical (cat) variables.
 # "Ind" is related to individual or driver, 
@@ -46,7 +47,7 @@ ggplot(data = df, aes(x = as.factor(target))) +
 
 ## Features Correlation - with NA
 df %>%
-  select(-starts_with("ps_calc"), -ps_ind_10_bin, -ps_ind_11_bin, -ps_car_10_cat, -target) %>%
+  select(-target) %>%
   cor(use="complete.obs", method = "spearman") %>%
   corrplot( method = "circle", type = "lower", tl.cex = 0.5,
             tl.col = "black",  diag=FALSE)
@@ -73,20 +74,31 @@ df[is.na(df$ps_car_14), "ps_car_14"] <- summary(df$ps_car_14)[4]
 ### EDA - part2
 ## features correlation -after dealing NA
 df %>%
-  select(-starts_with("ps_calc"), -ps_ind_10_bin, -ps_ind_11_bin, -ps_car_10_cat, -target) %>%
+  select(-target) %>%
   cor(use="complete.obs", method = "spearman") %>%
   corrplot( method = "circle", type = "lower", tl.cex = 0.5,
             tl.col = "black",  diag=FALSE)
 
-
+# PCA or Scale choose one
 ### PCA
 df_num <- df %>%
-  select(ends_with("_bin"))
+  select(-target)
 pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
-selected_components <- pca$x[, 1:10]
+selected_components <- pca$x[, 1:48]
 new_df <- df %>%
-  select(-ends_with("_bin"))
+  select(target)
 new_df <- cbind(new_df, selected_components)
+
+
+### Scale
+scale_df <- df %>%
+  select(-target) %>%
+  scale()
+scale_df <- as.data.frame(scale_df)
+
+new_df <- df %>%
+  select(target) 
+new_df <- cbind(new_df, scale_df)
 
 
 #### Set random seed
@@ -107,6 +119,18 @@ normalizedGini <- function(aa, pp) {
   }
   Gini(aa,pp) / Gini(aa,aa)
 }
+
+### Evaluation - AUC & Confusion Matrix
+auc_and_cm <- function(test_target, pred_target){
+  # AUC & ROC
+  auc <- roc(test_target, pred_target, auc=TRUE) 
+  print(auc)
+  threshold <- coords(auc, x='best', input='threshold', best.method='youden')$threshold
+  # Confusion Matrix
+  caret::confusionMatrix(factor(test_target), 
+                         factor(ifelse(pred_target>threshold, 1, 0)))  
+}
+
 
 ### Train / Test Data
 split <- sample.split(new_df, SplitRatio = 0.8)
@@ -152,13 +176,20 @@ xgb_model <- xgboost(data = as.matrix(X_train[-1]),
                  label = X_train$target,
                  params = params,
                  nrounds = best_nrounds)
+
 xgb_pred <- predict(xgb_model, newdata = as.matrix(X_test[-1]))
 print(paste("XGBoost: ", normalizedGini(X_test$target, xgb_pred)))
+# AUC & CM
+auc_and_cm(X_test$target, xgb_pred)
+
+
 
 ### Naive Bayes
 nb_model <- naiveBayes(target ~ ., data = X_train)
 nb_pred <- predict(nb_model, newdata = X_test[-1])
 print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred), 3)))
+# AUC & CM
+auc_and_cm(X_test$target, nb_pred)
 
 
 ### Logistic
@@ -167,6 +198,8 @@ logistic_model <- glm(target ~ .,
                       family = binomial)
 logistic_pred <- predict(logistic_model, newdata = X_test[-1])
 print(paste("Logistic: ", normalizedGini(X_test$target, logistic_pred)))
+# AUC & CM
+auc_and_cm(X_test$target, logistic_pred)
 
 
 ### Null Model
@@ -178,6 +211,8 @@ null_model <- xgboost(data = as.matrix(shuffle_X_train[-1]),
                      nrounds = best_nrounds)
 null_pred <- predict(null_model, newdata = as.matrix(X_test[-1]))
 print(paste("Null Model: ", normalizedGini(X_test$target, null_pred)))
+# AUC & CM
+auc_and_cm(X_test$target, null_pred)
 
 result <- data.frame(matrix(ncol=2, nrow=0))
 colnames(result) <- c("Model", "NormalGini")

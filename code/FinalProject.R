@@ -5,6 +5,7 @@ library(caTools)
 library(xgboost)
 library(e1071)
 library(pROC)
+library(factoextra)
 ################## Feature ##################
 # binary (bin) or categorical (cat) variables.
 # "Ind" is related to individual or driver, 
@@ -84,6 +85,7 @@ df %>%
 df_num <- df %>%
   select(-target)
 pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
+fviz_eig(pca, n = 48 ,addlabels = TRUE)
 selected_components <- pca$x[, 1:48]
 new_df <- df %>%
   select(target)
@@ -187,9 +189,9 @@ auc_and_cm(X_test$target, xgb_pred)
 ### Naive Bayes
 nb_model <- naiveBayes(target ~ ., data = X_train)
 nb_pred <- predict(nb_model, newdata = X_test[-1])
-print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred), 3)))
+print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,1]), 3)))
 # AUC & CM
-auc_and_cm(X_test$target, nb_pred)
+auc_and_cm(X_test$target, nb_pred[,1])
 
 
 ### Logistic
@@ -217,7 +219,7 @@ auc_and_cm(X_test$target, null_pred)
 result <- data.frame(matrix(ncol=2, nrow=0))
 colnames(result) <- c("Model", "NormalGini")
 result[nrow(result)+1,] <- c("XGBoost", round(normalizedGini(X_test$target, xgb_pred), 4))
-result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred), 4))
+result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred[,1]), 4))
 result[nrow(result)+1,] <- c("Logistic", round(normalizedGini(X_test$target, logistic_pred), 4))
 result[nrow(result)+1,] <- c("NullModel", round(normalizedGini(X_test$target, null_pred), 4))
 View(result)

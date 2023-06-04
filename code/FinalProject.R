@@ -6,6 +6,7 @@ if(length(args)==0) {
 # parse parameters
 train_file <- NULL
 output_file <- NULL
+pca_tag <- NULL
 
 i <- 1
 while(i < length(args))
@@ -15,6 +16,9 @@ while(i < length(args))
     i <- i+1
   }else if(args[i] == "--output"){
     output_file <- args[i+1]
+    i <- i+1
+  }else if (args[i] == "--pca"){
+    pca_tag <- args[i+1]
     i <- i+1
   }else{
     stop(paste("Unknown flag", args[i]), call.=FALSE)
@@ -54,7 +58,7 @@ library(factoextra)
 df <- read.csv(train_file, header = T, sep = "," , row.names = 1)
 df[df == -1] <- NA
 summary(df)
-View(df)
+#View(df)
 
 
 ### EDA - part1
@@ -117,25 +121,28 @@ df %>%
 
 # PCA or Scale choose one
 ### PCA
-df_num <- df %>%
-  select(-target)
-pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
-fviz_eig(pca, n = 48 ,addlabels = TRUE)
-selected_components <- pca$x[, 1:48]
-new_df <- df %>%
-  select(target)
-new_df <- cbind(new_df, selected_components)
-
-
+if (pca_tag == "yes"){
+  print("Start to do PCA...")
+  df_num <- df %>%
+    select(-target)
+  pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
+  fviz_eig(pca, n = 48 ,addlabels = TRUE)
+  selected_components <- pca$x[, 1:48]
+  new_df <- df %>%
+    select(target)
+  new_df <- cbind(new_df, selected_components)
+}else{
+  print("Start to do Scale...")
 ### Scale
-scale_df <- df %>%
-  select(-target) %>%
-  scale()
-scale_df <- as.data.frame(scale_df)
+  scale_df <- df %>%
+    select(-target) %>%
+    scale()
+  scale_df <- as.data.frame(scale_df)
 
-new_df <- df %>%
-  select(target) 
-new_df <- cbind(new_df, scale_df)
+  new_df <- df %>%
+    select(target) 
+  new_df <- cbind(new_df, scale_df)
+}
 
 
 #### Set random seed
@@ -176,6 +183,7 @@ X_test <- subset(new_df, split == FALSE)
 
 
 ### XGBoost
+print("Start XGBoost...")
 params <- list(
   objective = "binary:logistic",
   eval_metric = "logloss"
@@ -220,14 +228,16 @@ auc_and_cm(X_test$target, xgb_pred)
 
 
 ### Naive Bayes
+print("Start Naive Bayes...")
 nb_model <- naiveBayes(target ~ ., data = X_train)
-nb_pred <- predict(nb_model, newdata = X_test[-1])
-print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred), 3)))
+nb_pred <- predict(nb_model, newdata = X_test[-1],type = 'raw')
+print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,2]), 3)))
 # AUC & CM
-auc_and_cm(X_test$target, as.numeric(nb_pred)) # 記得修改
+auc_and_cm(X_test$target, as.numeric(nb_pred[,2]))
 
 
 ### Logistic
+print("Start Logistic...")
 logistic_model <- glm(target ~ ., 
                       data = X_train, 
                       family = binomial)
@@ -238,6 +248,7 @@ auc_and_cm(X_test$target, logistic_pred)
 
 
 ### Null Model
+print("Start NULL Model...")
 shuffle_X_train <- X_train
 shuffle_X_train$target <- sample(shuffle_X_train$target)
 null_model <- xgboost(data = as.matrix(shuffle_X_train[-1]),
@@ -253,10 +264,10 @@ auc_and_cm(X_test$target, null_pred)
 result <- data.frame(matrix(ncol=2, nrow=0))
 colnames(result) <- c("Model", "NormalGini")
 result[nrow(result)+1,] <- c("XGBoost", round(normalizedGini(X_test$target, xgb_pred), 4))
-result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred), 4))
+result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred[,2]), 4))
 result[nrow(result)+1,] <- c("Logistic", round(normalizedGini(X_test$target, logistic_pred), 4))
 result[nrow(result)+1,] <- c("NullModel", round(normalizedGini(X_test$target, null_pred), 4))
-View(result)
+#View(result)
 
 write.csv(result, output_file, row.names=FALSE, quote=FALSE)
 

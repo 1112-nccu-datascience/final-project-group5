@@ -1,3 +1,38 @@
+args = commandArgs(trailingOnly = TRUE)
+if(length(args)==0) {
+  stop("USAGE: Rscript code/FinalProject.R --train data/train.csv --output results/result.csv")
+}
+
+# parse parameters
+train_file <- NULL
+output_file <- NULL
+
+i <- 1
+while(i < length(args))
+{
+  if(args[i] == "--train"){
+    train_file <- args[i+1]
+    i <- i+1
+  }else if(args[i] == "--output"){
+    output_file <- args[i+1]
+    i <- i+1
+  }else{
+    stop(paste("Unknown flag", args[i]), call.=FALSE)
+  }
+  i <- i+1
+}
+
+# check missing flag
+if(is.null(train_file)) {
+  stop("Missing flag --train", call.=FALSE)
+}else if(is.null(output_file)) {
+  stop("Missing flag --output", call.=FALSE)
+}
+
+# 測試用
+# train_file = "data/train.csv"
+# output_file = "results/result.csv"
+
 library(ggplot2)
 library(dplyr)
 library(corrplot)
@@ -16,7 +51,7 @@ library(factoextra)
 
 
 ### Read data
-df <- read.csv("./data/train.csv", header = T, sep = "," , row.names = 1)
+df <- read.csv(train_file, header = T, sep = "," , row.names = 1)
 df[df == -1] <- NA
 summary(df)
 View(df)
@@ -68,7 +103,7 @@ df[is.na(df$ps_car_09_cat), "ps_car_09_cat"] <- as.numeric(names(table(df$ps_car
 df[is.na(df$ps_car_11_cat), "ps_car_11_cat"] <- as.numeric(names(table(df$ps_car_11_cat))[which.max(table(df$ps_car_11_cat))])
 # df[is.na(df$ps_car_11), "ps_car_11"] <- as.numeric(names(table(df$ps_car_11))[which.max(table(df$ps_car_11))])
 df[is.na(df$ps_reg_03), "ps_reg_03"] <- summary(df$ps_reg_03)[4]
-# df[is.na(df$ps_car_11), "ps_car_11"] <- summary(df$ps_car_11)[4]
+df[is.na(df$ps_car_11), "ps_car_11"] <- summary(df$ps_car_11)[4]
 df[is.na(df$ps_car_12), "ps_car_12"] <- summary(df$ps_car_12)[4]
 df[is.na(df$ps_car_14), "ps_car_14"] <- summary(df$ps_car_14)[4]
 
@@ -178,20 +213,18 @@ xgb_model <- xgboost(data = as.matrix(X_train[-1]),
                  label = X_train$target,
                  params = params,
                  nrounds = best_nrounds)
-
 xgb_pred <- predict(xgb_model, newdata = as.matrix(X_test[-1]))
 print(paste("XGBoost: ", normalizedGini(X_test$target, xgb_pred)))
 # AUC & CM
 auc_and_cm(X_test$target, xgb_pred)
 
 
-
 ### Naive Bayes
 nb_model <- naiveBayes(target ~ ., data = X_train)
 nb_pred <- predict(nb_model, newdata = X_test[-1])
-print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,1]), 3)))
+print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred), 3)))
 # AUC & CM
-auc_and_cm(X_test$target, nb_pred[,1])
+auc_and_cm(X_test$target, as.numeric(nb_pred)) # 記得修改
 
 
 ### Logistic
@@ -216,15 +249,16 @@ print(paste("Null Model: ", normalizedGini(X_test$target, null_pred)))
 # AUC & CM
 auc_and_cm(X_test$target, null_pred)
 
+
 result <- data.frame(matrix(ncol=2, nrow=0))
 colnames(result) <- c("Model", "NormalGini")
 result[nrow(result)+1,] <- c("XGBoost", round(normalizedGini(X_test$target, xgb_pred), 4))
-result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred[,1]), 4))
+result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred), 4))
 result[nrow(result)+1,] <- c("Logistic", round(normalizedGini(X_test$target, logistic_pred), 4))
 result[nrow(result)+1,] <- c("NullModel", round(normalizedGini(X_test$target, null_pred), 4))
 View(result)
 
-write.csv(result, "./results/result.csv", row.names=FALSE, quote=FALSE)
+write.csv(result, output_file, row.names=FALSE, quote=FALSE)
 
 ### select importance feature
 # model <- xgboost(data = as.matrix(X_train[-1]),

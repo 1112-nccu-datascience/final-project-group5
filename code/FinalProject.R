@@ -37,6 +37,16 @@ if(is.null(train_file)) {
 # train_file = "data/train.csv"
 # output_file = "results/result.csv"
 
+#options(repos = c(CRAN = "https://cran.r-project.org"))
+#install.packages("ggplot2")
+#install.packages("dplyr")
+#install.packages("corrplot")
+#install.packages("caTools")
+#install.packages("xgboost")
+#install.packages("e1071")
+#install.packages("pROC")
+#install.packages("factoextra")
+
 library(ggplot2)
 library(dplyr)
 library(corrplot)
@@ -55,7 +65,8 @@ library(factoextra)
 
 
 ### Read data
-df <- read.csv(train_file, header = T, sep = "," , row.names = 1)
+train_file <- unzip(train_file, exdir = "./data")
+df <- read.csv( train_file[1] , header = T, sep = "," , row.names = 1)
 df[df == -1] <- NA
 summary(df)
 #View(df)

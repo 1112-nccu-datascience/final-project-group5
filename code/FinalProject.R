@@ -188,7 +188,7 @@ auc_and_cm(X_test$target, xgb_pred)
 
 ### Naive Bayes
 nb_model <- naiveBayes(target ~ ., data = X_train)
-nb_pred <- predict(nb_model, newdata = X_test[-1])
+nb_pred <- predict(nb_model, newdata = X_test[-1],type = 'raw')
 print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,1]), 3)))
 # AUC & CM
 auc_and_cm(X_test$target, nb_pred[,1])

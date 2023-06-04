@@ -137,7 +137,19 @@ if (pca_tag == "yes"){
   df_num <- df %>%
     select(-target)
   pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
-  fviz_eig(pca, n = 48 ,addlabels = TRUE)
+  ##### PCA繪圖用 ######
+  eigenvalues <- get_eigenvalue(pca)
+  eigen_df <- data.frame(eigenvalue = eigenvalues$variance.percent, percentage = eigenvalues$cumulative.variance.percent)
+  eigen_df$index <- seq_len(nrow(eigen_df_sorted))
+  
+  # 創建ggplot對象並繪製長條圖
+  ggplot(eigen_df, aes(x = factor(index), y = percentage)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    geom_text(aes(label = round(percentage, 2)), vjust = -0.5, size = 2, color = "black") +
+    labs(x = "Eigenvalue", y = "Percentage") +
+    ggtitle("Percentage of Variance Explained") +
+    theme_minimal()
+  #######################
   selected_components <- pca$x[, 1:48]
   new_df <- df %>%
     select(target)

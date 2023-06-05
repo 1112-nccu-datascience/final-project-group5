@@ -1,3 +1,52 @@
+args = commandArgs(trailingOnly = TRUE)
+if(length(args)==0) {
+  stop("USAGE: Rscript code/FinalProject.R --train data/train.csv --output results/result.csv")
+}
+
+# parse parameters
+train_file <- NULL
+output_file <- NULL
+pca_tag <- NULL
+
+i <- 1
+while(i < length(args))
+{
+  if(args[i] == "--train"){
+    train_file <- args[i+1]
+    i <- i+1
+  }else if(args[i] == "--output"){
+    output_file <- args[i+1]
+    i <- i+1
+  }else if (args[i] == "--pca"){
+    pca_tag <- args[i+1]
+    i <- i+1
+  }else{
+    stop(paste("Unknown flag", args[i]), call.=FALSE)
+  }
+  i <- i+1
+}
+
+# check missing flag
+if(is.null(train_file)) {
+  stop("Missing flag --train", call.=FALSE)
+}else if(is.null(output_file)) {
+  stop("Missing flag --output", call.=FALSE)
+}
+
+# 測試用
+# train_file = "data/train.csv"
+# output_file = "results/result.csv"
+
+#options(repos = c(CRAN = "https://cran.r-project.org"))
+#install.packages("ggplot2")
+#install.packages("dplyr")
+#install.packages("corrplot")
+#install.packages("caTools")
+#install.packages("xgboost")
+#install.packages("e1071")
+#install.packages("pROC")
+#install.packages("factoextra")
+
 library(ggplot2)
 library(dplyr)
 library(corrplot)
@@ -16,10 +65,11 @@ library(factoextra)
 
 
 ### Read data
-df <- read.csv("./data/train.csv", header = T, sep = "," , row.names = 1)
+train_file <- unzip(train_file, exdir = "./data")
+df <- read.csv( train_file[1] , header = T, sep = "," , row.names = 1)
 df[df == -1] <- NA
 summary(df)
-View(df)
+#View(df)
 
 
 ### EDA - part1
@@ -68,7 +118,7 @@ df[is.na(df$ps_car_09_cat), "ps_car_09_cat"] <- as.numeric(names(table(df$ps_car
 df[is.na(df$ps_car_11_cat), "ps_car_11_cat"] <- as.numeric(names(table(df$ps_car_11_cat))[which.max(table(df$ps_car_11_cat))])
 # df[is.na(df$ps_car_11), "ps_car_11"] <- as.numeric(names(table(df$ps_car_11))[which.max(table(df$ps_car_11))])
 df[is.na(df$ps_reg_03), "ps_reg_03"] <- summary(df$ps_reg_03)[4]
-# df[is.na(df$ps_car_11), "ps_car_11"] <- summary(df$ps_car_11)[4]
+df[is.na(df$ps_car_11), "ps_car_11"] <- summary(df$ps_car_11)[4]
 df[is.na(df$ps_car_12), "ps_car_12"] <- summary(df$ps_car_12)[4]
 df[is.na(df$ps_car_14), "ps_car_14"] <- summary(df$ps_car_14)[4]
 
@@ -82,25 +132,28 @@ df %>%
 
 # PCA or Scale choose one
 ### PCA
-df_num <- df %>%
-  select(-target)
-pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
-fviz_eig(pca, n = 48 ,addlabels = TRUE)
-selected_components <- pca$x[, 1:48]
-new_df <- df %>%
-  select(target)
-new_df <- cbind(new_df, selected_components)
-
-
+if (pca_tag == "yes"){
+  print("Start to do PCA...")
+  df_num <- df %>%
+    select(-target)
+  pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
+  fviz_eig(pca, n = 48 ,addlabels = TRUE)
+  selected_components <- pca$x[, 1:48]
+  new_df <- df %>%
+    select(target)
+  new_df <- cbind(new_df, selected_components)
+}else{
+  print("Start to do Scale...")
 ### Scale
-scale_df <- df %>%
-  select(-target) %>%
-  scale()
-scale_df <- as.data.frame(scale_df)
+  scale_df <- df %>%
+    select(-target) %>%
+    scale()
+  scale_df <- as.data.frame(scale_df)
 
-new_df <- df %>%
-  select(target) 
-new_df <- cbind(new_df, scale_df)
+  new_df <- df %>%
+    select(target) 
+  new_df <- cbind(new_df, scale_df)
+}
 
 
 #### Set random seed
@@ -141,6 +194,7 @@ X_test <- subset(new_df, split == FALSE)
 
 
 ### XGBoost
+print("Start XGBoost...")
 params <- list(
   objective = "binary:logistic",
   eval_metric = "logloss"
@@ -178,23 +232,27 @@ xgb_model <- xgboost(data = as.matrix(X_train[-1]),
                  label = X_train$target,
                  params = params,
                  nrounds = best_nrounds)
-
 xgb_pred <- predict(xgb_model, newdata = as.matrix(X_test[-1]))
 print(paste("XGBoost: ", normalizedGini(X_test$target, xgb_pred)))
 # AUC & CM
 auc_and_cm(X_test$target, xgb_pred)
 
 
-
 ### Naive Bayes
+print("Start Naive Bayes...")
 nb_model <- naiveBayes(target ~ ., data = X_train)
 nb_pred <- predict(nb_model, newdata = X_test[-1],type = 'raw')
-print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,1]), 3)))
+#<<<<<<< HEAD
+#print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,1]), 3)))
+#=======
+print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,2]), 3)))
+#>>>>>>> 0a04569a1c03c89137c3d8060be88c79a11e6dc4
 # AUC & CM
-auc_and_cm(X_test$target, nb_pred[,1])
+auc_and_cm(X_test$target, as.numeric(nb_pred[,2]))
 
 
 ### Logistic
+print("Start Logistic...")
 logistic_model <- glm(target ~ ., 
                       data = X_train, 
                       family = binomial)
@@ -205,6 +263,7 @@ auc_and_cm(X_test$target, logistic_pred)
 
 
 ### Null Model
+print("Start NULL Model...")
 shuffle_X_train <- X_train
 shuffle_X_train$target <- sample(shuffle_X_train$target)
 null_model <- xgboost(data = as.matrix(shuffle_X_train[-1]),
@@ -216,15 +275,16 @@ print(paste("Null Model: ", normalizedGini(X_test$target, null_pred)))
 # AUC & CM
 auc_and_cm(X_test$target, null_pred)
 
+
 result <- data.frame(matrix(ncol=2, nrow=0))
 colnames(result) <- c("Model", "NormalGini")
 result[nrow(result)+1,] <- c("XGBoost", round(normalizedGini(X_test$target, xgb_pred), 4))
-result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred[,1]), 4))
+result[nrow(result)+1,] <- c("NaiveBayes", round(normalizedGini(X_test$target, nb_pred[,2]), 4))
 result[nrow(result)+1,] <- c("Logistic", round(normalizedGini(X_test$target, logistic_pred), 4))
 result[nrow(result)+1,] <- c("NullModel", round(normalizedGini(X_test$target, null_pred), 4))
-View(result)
+#View(result)
 
-write.csv(result, "./results/result.csv", row.names=FALSE, quote=FALSE)
+write.csv(result, output_file, row.names=FALSE, quote=FALSE)
 
 ### select importance feature
 # model <- xgboost(data = as.matrix(X_train[-1]),

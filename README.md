@@ -11,8 +11,13 @@ The goals of this project.
 |許軒祥|資科碩一|111753122|團隊的中流砥柱，一個人打十個|
 ## Quick start
 You might provide an example commend or few commends to reproduce your analysis, i.e., the following R script
+* PCA
 ```R
-Rscript code/your_script.R --input data/training --output results/performance.tsv
+Rscript code/FinalProject.R --train data/train.csv.zip --output results/result.csv --pca yes
+```
+* Without PCA
+```R
+Rscript code/FinalProject.R --train data/train.csv.zip --output results/result.csv --pca no
 ```
 
 ## Folder organization and its related description

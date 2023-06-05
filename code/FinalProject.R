@@ -49,6 +49,7 @@ if(is.null(train_file)) {
 
 library(ggplot2)
 library(dplyr)
+library(ROSE)
 library(corrplot)
 library(caTools)
 library(xgboost)
@@ -130,12 +131,16 @@ df %>%
   corrplot( method = "circle", type = "lower", tl.cex = 0.5,
             tl.col = "black",  diag=FALSE)
 
+### 處理資料不平衡，調整為1:1
+both <- ovun.sample(target~., data=df, method = "both")$data
+table(both$target)
+
 # PCA or Scale choose one
 ### PCA
 if (pca_tag == "yes"){
   print("Start to do PCA...")
-  df_num <- df %>%
-    select(-target)
+  df_num <- both %>%
+    select(-target,-contains('calc'))
   pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
   ##### PCA繪圖用 ######
   eigenvalues <- get_eigenvalue(pca)
@@ -143,6 +148,7 @@ if (pca_tag == "yes"){
   eigen_df$index <- seq_len(nrow(eigen_df_sorted))
   
   # 創建ggplot對象並繪製長條圖
+  # 選30個PCA約可解釋97.08%的變異
   ggplot(eigen_df, aes(x = factor(index), y = percentage)) +
     geom_bar(stat = "identity", fill = "steelblue") +
     geom_text(aes(label = round(percentage, 2)), vjust = -0.5, size = 2, color = "black") +
@@ -150,19 +156,20 @@ if (pca_tag == "yes"){
     ggtitle("Percentage of Variance Explained") +
     theme_minimal()
   #######################
-  selected_components <- pca$x[, 1:48]
-  new_df <- df %>%
-    select(target)
+  # 新資料集共51個變數
+  selected_components <- pca$x[, 1:30]
+  new_df <- both %>%
+    select(target,contains('calc'))
   new_df <- cbind(new_df, selected_components)
 }else{
   print("Start to do Scale...")
 ### Scale
-  scale_df <- df %>%
+  scale_df <- both %>%
     select(-target) %>%
     scale()
   scale_df <- as.data.frame(scale_df)
 
-  new_df <- df %>%
+  new_df <- both %>%
     select(target) 
   new_df <- cbind(new_df, scale_df)
 }
@@ -195,7 +202,8 @@ auc_and_cm <- function(test_target, pred_target){
   threshold <- coords(auc, x='best', input='threshold', best.method='youden')$threshold
   # Confusion Matrix
   caret::confusionMatrix(factor(test_target), 
-                         factor(ifelse(pred_target>threshold, 1, 0)))  
+                         factor(ifelse(pred_target>threshold, 1, 0)),
+                         positive = "1")  
 }
 
 

@@ -140,7 +140,7 @@ table(both$target)
 if (pca_tag == "yes"){
   print("Start to do PCA...")
   df_num <- both %>%
-    select(-target,-contains('calc'))
+    select(-target)
   pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
   ##### PCA繪圖用 ######
   eigenvalues <- get_eigenvalue(pca)
@@ -148,7 +148,6 @@ if (pca_tag == "yes"){
   eigen_df$index <- seq_len(nrow(eigen_df_sorted))
   
   # 創建ggplot對象並繪製長條圖
-  # 選30個PCA約可解釋97.08%的變異
   ggplot(eigen_df, aes(x = factor(index), y = percentage)) +
     geom_bar(stat = "identity", fill = "steelblue") +
     geom_text(aes(label = round(percentage, 2)), vjust = -0.5, size = 2, color = "black") +
@@ -157,9 +156,9 @@ if (pca_tag == "yes"){
     theme_minimal()
   #######################
   # 新資料集共51個變數
-  selected_components <- pca$x[, 1:30]
+  selected_components <- pca$x[, 1:48]
   new_df <- both %>%
-    select(target,contains('calc'))
+    select(target)
   new_df <- cbind(new_df, selected_components)
 }else{
   print("Start to do Scale...")

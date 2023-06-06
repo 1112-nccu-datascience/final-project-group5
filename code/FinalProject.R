@@ -34,8 +34,9 @@ if(is.null(train_file)) {
 }
 
 # 測試用
-# train_file = "data/train.csv"
-# output_file = "results/result.csv"
+train_file <- "data/train.csv.zip"
+output_file <- "results/result.csv"
+pca_tag <- "yes"
 
 #options(repos = c(CRAN = "https://cran.r-project.org"))
 #install.packages("ggplot2")
@@ -46,6 +47,7 @@ if(is.null(train_file)) {
 #install.packages("e1071")
 #install.packages("pROC")
 #install.packages("factoextra")
+#install.packages("caret")
 
 library(ggplot2)
 library(dplyr)
@@ -56,6 +58,7 @@ library(xgboost)
 library(e1071)
 library(pROC)
 library(factoextra)
+library(caret)
 ################## Feature ##################
 # binary (bin) or categorical (cat) variables.
 # "Ind" is related to individual or driver, 
@@ -67,7 +70,7 @@ library(factoextra)
 
 ### Read data
 train_file <- unzip(train_file, exdir = "./data")
-df <- read.csv( train_file[1] , header = T, sep = "," , row.names = 1)
+df <- read.csv(train_file[1] , header = T, sep = "," , row.names = 1)
 df[df == -1] <- NA
 summary(df)
 #View(df)
@@ -131,51 +134,35 @@ df %>%
   corrplot( method = "circle", type = "lower", tl.cex = 0.5,
             tl.col = "black",  diag=FALSE)
 
-### 處理資料不平衡，調整為1:1
-both <- ovun.sample(target~., data=df, method = "both")$data
-table(both$target)
-
-# PCA or Scale choose one
-### PCA
-if (pca_tag == "yes"){
-  print("Start to do PCA...")
-  df_num <- both %>%
-    select(-target)
-  pca <- prcomp(df_num, center = TRUE, scale. = TRUE)
-  ##### PCA繪圖用 ######
-  eigenvalues <- get_eigenvalue(pca)
-  eigen_df <- data.frame(eigenvalue = eigenvalues$variance.percent, percentage = eigenvalues$cumulative.variance.percent)
-  eigen_df$index <- seq_len(nrow(eigen_df_sorted))
-  
-  # 創建ggplot對象並繪製長條圖
-  ggplot(eigen_df, aes(x = factor(index), y = percentage)) +
-    geom_bar(stat = "identity", fill = "steelblue") +
-    geom_text(aes(label = round(percentage, 2)), vjust = -0.5, size = 2, color = "black") +
-    labs(x = "Eigenvalue", y = "Percentage") +
-    ggtitle("Percentage of Variance Explained") +
-    theme_minimal()
-  #######################
-  # 新資料集共51個變數
-  selected_components <- pca$x[, 1:48]
-  new_df <- both %>%
-    select(target)
-  new_df <- cbind(new_df, selected_components)
-}else{
-  print("Start to do Scale...")
-### Scale
-  scale_df <- both %>%
-    select(-target) %>%
-    scale()
-  scale_df <- as.data.frame(scale_df)
-
-  new_df <- both %>%
-    select(target) 
-  new_df <- cbind(new_df, scale_df)
-}
-
-
 #### Set random seed
 set.seed(6666)
+
+### Split Train/Test Data
+split <- sample.split(df, SplitRatio = 0.8)
+X_train <- subset(df, split == TRUE)
+X_test <- subset(df, split == FALSE)
+
+### Scale
+scaler <- preProcess(X_train[-1], method = c("center", "scale"))
+X_train <- cbind(X_train[1], predict(scaler, X_train[-1]))
+X_test <- predict(scaler, X_test)
+
+### 處理資料不平衡，調整為 4:1
+# X_train <- ovun.sample(target~., data = X_train, method = "over", p = 0.2)$data
+### 處理資料不平衡，調整為 1:1 oversampling
+# X_train <- ovun.sample(target~., data = X_train, method = "over")$data
+### 處理資料不平衡，調整為 1:1 undersampling & oversampling
+# X_train <- ovun.sample(target~., data = X_train, method = "both")$data
+### 處理資料不平衡，調整為 1:1 undersampling
+# X_train <- ovun.sample(target~., data = X_train, method = "under")$data
+table(X_train$target)
+
+### PCA
+if (pca_tag == "yes"){
+  pca <- preProcess(X_train[-1], method = "pca", pcaComp = 47)
+  X_train <- cbind(X_train[1], predict(pca, X_train[-1]))
+  X_test <- predict(pca, X_test)
+}
 
 ### Evaluation - GINI
 normalizedGini <- function(aa, pp) {
@@ -204,12 +191,6 @@ auc_and_cm <- function(test_target, pred_target){
                          factor(ifelse(pred_target>threshold, 1, 0)),
                          positive = "1")  
 }
-
-
-### Train / Test Data
-split <- sample.split(new_df, SplitRatio = 0.8)
-X_train <- subset(new_df, split == TRUE)
-X_test <- subset(new_df, split == FALSE)
 
 
 ### XGBoost
@@ -260,12 +241,8 @@ auc_and_cm(X_test$target, xgb_pred)
 ### Naive Bayes
 print("Start Naive Bayes...")
 nb_model <- naiveBayes(target ~ ., data = X_train)
-nb_pred <- predict(nb_model, newdata = X_test[-1],type = 'raw')
-#<<<<<<< HEAD
-#print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,1]), 3)))
-#=======
+nb_pred <- predict(nb_model, newdata = X_test[-1], type = 'raw')
 print(paste("NaiveBayes: ", round(normalizedGini(X_test$target, nb_pred[,2]), 3)))
-#>>>>>>> 0a04569a1c03c89137c3d8060be88c79a11e6dc4
 # AUC & CM
 auc_and_cm(X_test$target, as.numeric(nb_pred[,2]))
 

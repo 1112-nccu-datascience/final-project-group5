@@ -1,0 +1,5 @@
+Model,NormalGini
+XGBoost,0.2286
+NaiveBayes,0.1998
+Logistic,0.2342
+NullModel,0.0261

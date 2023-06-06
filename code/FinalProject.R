@@ -34,9 +34,9 @@ if(is.null(train_file)) {
 }
 
 # 測試用
-train_file <- "data/train.csv.zip"
-output_file <- "results/result.csv"
-pca_tag <- "yes"
+# train_file <- "data/train.csv.zip"
+# output_file <- "results/result.csv"
+# pca_tag <- "yes"
 
 #options(repos = c(CRAN = "https://cran.r-project.org"))
 #install.packages("ggplot2")

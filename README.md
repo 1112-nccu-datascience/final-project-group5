@@ -133,7 +133,7 @@ new_df <- cbind(new_df, scale_df)
     -   Normalized Gini Coefficient (標準化吉尼係數)
 
         -   標準化吉尼係數為 AUC 的線性組合。兩者之間的關係為: Gini = 2 × AUC − 1
-        
+
         -   當標準化吉尼係數為1時，表示模型的預測結果完美區分positive case 與negative case；當標準化吉尼係數為0時，表示模型的預測結果與隨機猜測的效果相同；當標準化基尼係數為負數時，表示模型的預測結果比隨機猜測的效果還差。
 
     -   Precision (精確性)
@@ -286,3 +286,20 @@ null_pred <- predict(null_model, newdata = as.matrix(X_test[-1]))
 -   可以改進的方向: 在建立模型之前，可以先分析各變數與目標變數的關係，盡量刪除相關性較低的變數，減少資料中的雜訊。
 
 ### Reference
+
+-   Packages we use
+
+``` r
+library(ggplot2)
+library(dplyr)
+library(ROSE)
+library(corrplot)
+library(caTools)
+library(xgboost)
+library(e1071)
+library(pROC)
+library(factoextra)
+library(caret)
+```
+
+-   Related publications

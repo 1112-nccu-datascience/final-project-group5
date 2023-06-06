@@ -76,6 +76,7 @@ summary(df)
 #View(df)
 
 
+print("Start EDA...")
 ### EDA - part1
 ## Count NA of each features
 na_counts <- colSums(is.na(df))
@@ -143,6 +144,7 @@ X_train <- subset(df, split == TRUE)
 X_test <- subset(df, split == FALSE)
 
 ### Scale
+print("Start Scale...")
 scaler <- preProcess(X_train[-1], method = c("center", "scale"))
 X_train <- cbind(X_train[1], predict(scaler, X_train[-1]))
 X_test <- predict(scaler, X_test)
@@ -159,6 +161,7 @@ table(X_train$target)
 
 ### PCA
 if (pca_tag == "yes"){
+  print("Start PCA...")
   pca <- preProcess(X_train[-1], method = "pca", pcaComp = 47)
   X_train <- cbind(X_train[1], predict(pca, X_train[-1]))
   X_test <- predict(pca, X_test)
@@ -220,7 +223,7 @@ xgb_data <- data.frame(parameters = unlist(nrounds_list), xgb_list = unlist(xgb_
 ggplot(xgb_data, aes(x = parameters, y = xgb_list)) +
   geom_line(color = "lightblue", linewidth = 1) +  # 設定折線顏色和粗細
   geom_text(aes(label = xgb_list), vjust = -1.5, color = "darkblue", size = 4) +
-  labs(x = "NRounds", y = "Gini", title = "XGBoost Model Training - PCA") +
+  labs(x = "NRounds", y = "Gini", title = "XGBoost Model Training") +
   theme_minimal() +                         # 使用簡約風格的主題
   theme(plot.title = element_text(size = 12, face = "bold"),  # 設定標題樣式
         axis.text = element_text(size = 10),                  # 設定軸標籤樣式

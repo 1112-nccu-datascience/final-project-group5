@@ -169,9 +169,21 @@ X_test <- predict(scaler, X_test)
 X_train <- ovun.sample(target~., data = X_train, method = "over", p = 0.2)$data
 ```
 
--   step4: 使用 XGBoost、Naive Bayes、 Logistic、Null model 等方法訓練模型。其中，XGBoost 使用 test data 計算不同 nrounds 之下的 Normalized Gini Coefficient 進行最適模型選擇。
+-   step4 (optional) : 使用PCA萃取前47個因子。
 
--   step5: 計算各評估指標，比較不同模型的分類表現。
+``` r
+### PCA
+if (pca_tag == "yes"){
+  print("Start PCA...")
+  pca <- preProcess(X_train[-1], method = "pca", pcaComp = 47)
+  X_train <- cbind(X_train[1], predict(pca, X_train[-1]))
+  X_test <- predict(pca, X_test)
+}
+``` 
+
+-   step5: 使用 XGBoost、Naive Bayes、 Logistic、Null model 等方法訓練模型。其中，XGBoost 使用 test data 計算不同 nrounds 之下的 Normalized Gini Coefficient 進行最適模型選擇。
+
+-   step6: 計算各評估指標，比較不同模型的分類表現。
 
 ### Codes
 

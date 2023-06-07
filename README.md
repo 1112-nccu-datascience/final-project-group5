@@ -95,38 +95,34 @@ table(X_train$target)
 
     -   方法二: 不使用PCA，僅將變數進行標準化。
 
-``` r
-scale_df <- df %>%
-  select(-target) %>%
-  scale()
-scale_df <- as.data.frame(scale_df)
-
-new_df <- df %>%
-  select(target) 
-new_df <- cbind(new_df, scale_df)
-```
-
 ### Model and Evaluation Method
 
 -   模型介紹:
 
     -   XGBoost
 
-        -   使用梯度演算法，透過連續迭代的方法逐步改善模型的預測能力。
+        -   使用梯度提升的方式生成多棵樹，每棵樹都修正前面樹的預測錯誤，並且引入特徵隨機採樣和正則化來提高模型的泛化能力和穩健性，主要利用損失函數的一階和二階導數來生成分類樹，優化模型的訓練過程。
+
+        ![](results/pictures/XGBoost.png)
+
         -   重要參數: 迭代次數 (nrounds)。
             -   nrounds愈大，表示模型將進行更多次迭代，能更充分學習數據的模式與特徵。然而，過大的nrounds值可能導致過擬合的問題，因此訓練過程中需謹慎選擇適當的nrounds值。
 
     -   Naive Bayes
 
-        -   以貝式定理 (Bayes' theorem) 為基礎，在各事件獨立的假設下計算事件發生的條件機率。
+        -   貝氏理論是關於隨機事件A和B事件的定理，在一個已知B事件會發生下，計算A事件發生的機率，單純貝氏對已知類別假設所有屬性互相獨立，因此聯合機率的算法如下:
+
+        ![](results/pictures/NaiveBayes.png)
 
     -   Logistic Regression
 
-        -   又稱迴歸的線性分類器。其做法為嘗試找出一條直線，能將所有數據清楚分類。
+        -   又稱迴歸的線性分類器。其做法為嘗試找出一條直線，能將所有數據清楚分類。其方法為找出某事件的事後機率 (posterior probability) 。當機率 P(C1\|x) 大於 0.5 時則輸出預測 1，反之機率小於 0.5 則輸出 0。
+
+        ![](results/pictures/LogisticRegression.png)
 
     -   Null Model
 
-        -   將目標變數的進行隨機排序，並使用 XGBoost 訓練模型。
+        -   將目標變數進行隨機排序，並使用 XGBoost 訓練模型。
 
 -   評估指標
 
@@ -179,7 +175,7 @@ if (pca_tag == "yes"){
   X_train <- cbind(X_train[1], predict(pca, X_train[-1]))
   X_test <- predict(pca, X_test)
 }
-``` 
+```
 
 -   step5: 使用 XGBoost、Naive Bayes、 Logistic、Null model 等方法訓練模型。其中，XGBoost 使用 test data 計算不同 nrounds 之下的 Normalized Gini Coefficient 進行最適模型選擇。
 

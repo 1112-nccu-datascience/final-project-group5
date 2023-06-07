@@ -36,7 +36,7 @@ Running either command will output 1 csv file (result.csv).
 
 ### docs
 
--   Our presentation, 1112_DS-FP_groupID.ppt/pptx/pdf (i.e.,1112_DS-FP_group1.ppt), by **06.08**
+-   Our presentation, https://www.canva.com/design/DAFkRpd7Qps/5CciM079UzGXBI-FjVbAZg/view?utm_content=DAFkRpd7Qps&utm_campaign=share_your_design&utm_medium=link&utm_source=shareyourdesignpanel
 
 ### Data Introduction and Preprocessing
 

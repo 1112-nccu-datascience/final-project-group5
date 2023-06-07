@@ -91,9 +91,9 @@ table(X_train$target)
 
 -   變數處理方法
 
-    -   方法一: 使用PCA萃取前47個共同因子進行後續分析。如下圖所示，前47個共同因子約能解釋95.17%的變異 。![](results/pictures/PCA.png)
+    -   方法一: 將資料標準化(scaling)後使用PCA萃取前47個共同因子進行後續分析。如下圖所示，前47個共同因子約能解釋95.17%的變異 。![](results/pictures/PCA.png)
 
-    -   方法二: 不使用PCA，僅將變數進行標準化(scaling)。
+    -   方法二: 不使用PCA，僅將變數進行標準化。
 
 ``` r
 scale_df <- df %>%
@@ -126,7 +126,7 @@ new_df <- cbind(new_df, scale_df)
 
     -   Null Model
 
-        -   將目標變數的進行隨機排序，並使用 XGBoost 訓練模型，即為本研究的Null Model。
+        -   將目標變數的進行隨機排序，並使用 XGBoost 訓練模型。
 
 -   評估指標
 
@@ -144,17 +144,34 @@ new_df <- cbind(new_df, scale_df)
 
 ### Analysis steps
 
--   分析步驟:
+-   step1: 將處理缺失值後的原始資料以 8 : 2 的比例切分為 training data 及 testing data。
 
-    -   step1: 將處理缺失值後的原始資料以 8 : 2 的比例切分為 training data 及 testing data。
+``` r
+### Split Train/Test Data
+split <- sample.split(df, SplitRatio = 0.8)
+X_train <- subset(df, split == TRUE)
+X_test <- subset(df, split == FALSE)
+```
 
-    -   step2: 以 oversampling 的方法將 training data 中目標變數的分布調整為 4 : 1 。
+-   step2: 將資料進行標準化。
 
-    -   step3: 使用 PCA 或 scaling 的方法處理 training data 及 testing data 的變數。
+``` r
+### Scale
+print("Start Scale...")
+scaler <- preProcess(X_train[-1], method = c("center", "scale"))
+X_train <- cbind(X_train[1], predict(scaler, X_train[-1]))
+X_test <- predict(scaler, X_test)
+```
 
-    -   step4: 使用 XGBoost、Naive Bayes、 Logistic、Null model 等方法訓練模型。其中，XGBoost 使用 test data 計算不同 nrounds 之下的 Normalized Gini Coefficient 進行最適模型選擇。
+-   step3: 以 oversampling 的方法將 training data 中目標變數的分布調整為 4 : 1 。
 
-    -   step5: 計算各評估指標，比較不同模型的分類表現。
+``` r
+X_train <- ovun.sample(target~., data = X_train, method = "over", p = 0.2)$data
+```
+
+-   step4: 使用 XGBoost、Naive Bayes、 Logistic、Null model 等方法訓練模型。其中，XGBoost 使用 test data 計算不同 nrounds 之下的 Normalized Gini Coefficient 進行最適模型選擇。
+
+-   step5: 計算各評估指標，比較不同模型的分類表現。
 
 ### Codes
 
@@ -205,7 +222,7 @@ ggplot(xgb_data, aes(x = parameters, y = xgb_list)) +
 
 ![](results/pictures/bal+PCA/XGBoost-PCA.png)
 
--   圖形二: 沒有做 PCA (只做scaling)
+-   圖形二: 沒有做 PCA
 
 ![](results/pictures/bal+NoPCA/XGBoost-NoPCA.png)
 
@@ -281,7 +298,7 @@ null_pred <- predict(null_model, newdata = as.matrix(X_test[-1]))
 
 -   整體而言，無論是否有進行PCA，Sensitivity 與 Specificity 的差距都相當懸殊，且各模型的 Precision 與Null Model 差異不大，約落在0.5\~0.6之間。表示即使我們已經處理資料不平衡的問題，模型依舊難以識別資料中的 Positive case ，也難以提升分類的精確度。
 
--   可以觀察進行PCA並不能提升模型的預測能力。以 Gini 來看，甚至不做PCA的預測能力可能更好。可能的原因是資料本身的包含過多雜訊 ( 例如: 抽樣誤差、遺漏重要變數等 )，導致 PCA 難以萃出取具有解釋力的因子，降低模型的預測能力。
+-   可以觀察進行PCA並不能提升模型的預測能力。以 Gini 來看，甚至不做PCA的預測能力可能更好。可能的原因是資料本身的包含過多雜訊 ( 例如: 抽樣誤差、遺漏重要變數、變數解釋力低等 )，導致 PCA 難以萃出取具有解釋力的因子，降低模型的預測能力。
 
 -   可以改進的方向: 在建立模型之前，可以先分析各變數與目標變數的關係，盡量刪除相關性較低的變數，減少資料中的雜訊。
 
@@ -301,5 +318,3 @@ library(pROC)
 library(factoextra)
 library(caret)
 ```
-
--   Related publications
